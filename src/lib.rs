@@ -1,1 +1,2 @@
-pub mod drone;
+mod drone;
+pub use drone::RustaceansWitAttitudesDrone;
