@@ -188,6 +188,7 @@ impl RustaceansWitAttitudesDrone {
     }
     // </editor-fold>
 
+
     // <editor-fold desc="Packets">
     fn handle_packet(&mut self, mut packet: Packet) {
         debug!("Drone: {:?} received packet {:?}", self.id, packet.pack_type);
@@ -197,24 +198,33 @@ impl RustaceansWitAttitudesDrone {
         if !matches!(packet.pack_type, PacketType::FloodRequest(_)){
 
             // check for UnexpectedRecipient (will send the package backwards)
-            if self.id != packet.routing_header.current_hop().unwrap(){
-                debug!("Drone: {:?} got UnexpectedRecipient error", self.id);
-                packet.routing_header.reverse();
-                let new_packet = Packet::new_nack(
-                    packet.routing_header.clone(),
-                    packet.session_id,
-                    Nack{
-                        fragment_index: packet.get_fragment_index(),
-                        nack_type: NackType::UnexpectedRecipient(self.id)
-                    }
-                );
-                let p = self.forward_packet(new_packet);
-                match p{
-                    Ok(_p) => {self.send_sent_to_sc(_p)}
-                    Err(_p) => {self.send_shortcut_to_sc(_p.0)}
+            match packet.routing_header.current_hop() {
+                None => {
+                    debug!("*surprised quack*, Drone: {:?} panicked, routing_header.current_hop() is None", self.id);
+                    panic!("*surprised quack*")
                 }
-                return;
+                Some(current_hop) => {
+                    if self.id != current_hop{
+                        debug!("Drone: {:?} got UnexpectedRecipient error", self.id);
+                        packet.routing_header.reverse();
+                        let new_packet = Packet::new_nack(
+                            packet.routing_header.clone(),
+                            packet.session_id,
+                            Nack{
+                                fragment_index: packet.get_fragment_index(),
+                                nack_type: NackType::UnexpectedRecipient(self.id)
+                            }
+                        );
+                        let p = self.forward_packet(new_packet);
+                        match p{
+                            Ok(_p) => {self.send_sent_to_sc(_p)}
+                            Err(_p) => {self.send_shortcut_to_sc(_p.0)}
+                        }
+                        return;
+                    }
+                }
             }
+
 
             // check for DestinationIsDrone (will send the package backwards)
             if packet.routing_header.hops.len() == packet.routing_header.hop_index {
@@ -300,22 +310,31 @@ impl RustaceansWitAttitudesDrone {
                     let p = self.forward_packet(packet);
                     match p{
                         Ok(_p) => {self.send_sent_to_sc(_p)}
-                        Err(_p) => {panic!("*surprised quack*")}
+                        Err(_p) => {
+                            debug!("*surprised quack*, Drone: {:?} panicked", self.id);
+                            panic!("*surprised quack*")
+                        }
                     }
                     return;
                 }
             }
             PacketType::FloodRequest(mut _flood_request) => {
                 // is it the first time the node receives this flood request?
-                let current_flood = self.flood_initiators.get_key_value(&_flood_request.flood_id);
-                let drone_flood = (&_flood_request.flood_id, &_flood_request.initiator_id);
-                if current_flood.is_none() || current_flood.unwrap() != drone_flood{
+                let current_flood: Option<&NodeId> = self.flood_initiators.get(&_flood_request.flood_id);
+                let is_new_flood = match current_flood {
+                    None => true,
+                    Some(initiator) => initiator != &_flood_request.initiator_id
+                };
+                if is_new_flood{
                     // yes: send a flood request to all neighbors and add it to the flood_initiators hashmap
                     self.flood_initiators.insert(_flood_request.flood_id, _flood_request.initiator_id);
                     let p = self.forward_flood_request(packet, _flood_request);
                     match p{
                         Ok(_p) => {self.send_sent_to_sc(_p)}
-                        Err(_p) => {panic!("*surprised quack*")}
+                        Err(_p) => {
+                            debug!("*surprised quack*, Drone: {:?} panicked", self.id);
+                            panic!("*surprised quack*")
+                        }
                     }
                     return;
                 } else {
@@ -326,7 +345,7 @@ impl RustaceansWitAttitudesDrone {
                     let flood_response_packet = _flood_request.generate_response(packet.session_id);
                     debug!("Drone: {:?} is generating a flood_request: {:?}", self.id, flood_response_packet);
                     let p = self.forward_packet(flood_response_packet);
-                    match p{
+                    match p {
                         Ok(_p) => {self.send_sent_to_sc(_p)}
                         Err(_p) => {self.send_shortcut_to_sc(_p.0)}
                     }
@@ -360,14 +379,21 @@ impl RustaceansWitAttitudesDrone {
         );
 
         // send packet to neighbors (except for the previous drone)
-        let prev_node_id = packet.routing_header.previous_hop().expect("*surprised quack*");
-        for (node_id, _) in self.packet_send.clone(){
-            if prev_node_id != node_id{
-                // try to send packet
-                match self.try_send_packet(p.clone(), node_id){
-                    Ok(_) => {}
-                    Err(e) => {return Err(e)}
+        match packet.routing_header.previous_hop() {
+            Some(prev) => {
+                for (node_id, _) in self.packet_send.clone() {
+                    if prev != node_id {
+                        // try to send packet
+                        match self.try_send_packet(p.clone(), node_id) {
+                            Ok(_) => {}
+                            Err(e) => {return Err(e)}
+                        }
+                    }
                 }
+            }
+            None => {
+                debug!("*surprised quack*, Drone: {:?} panicked", self.id);
+                panic!("*surprised quack*")
             }
         }
         Ok(p)
@@ -377,7 +403,10 @@ impl RustaceansWitAttitudesDrone {
 
         // Try to send packet
         match packet.routing_header.current_hop() {
-            None => {panic!("*surprised quack*, Drone: {:?} pack: {:?}", self.id, packet)}
+            None => {
+                debug!("*surprised quack*, Drone: {:?} pack: {:?}", self.id, packet);
+                panic!("*surprised quack*, Drone: {:?} pack: {:?}", self.id, packet)
+            }
             Some(_next_node_id) => {self.try_send_packet(packet, _next_node_id)}
         }
     }
