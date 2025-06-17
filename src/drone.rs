@@ -126,7 +126,6 @@ impl RustaceansWitAttitudesDrone {
                                     Err(_p) => {self.send_shortcut_to_sc(_p.0)}
                                     _ => {}
                                 }
-                                return;
                             } 
                             PacketType::Nack(_) => {
                                 let p = self.forward_packet(packet);
@@ -134,7 +133,6 @@ impl RustaceansWitAttitudesDrone {
                                     Err(_p) => {self.send_shortcut_to_sc(_p.0)}
                                     _ => {}
                                 }
-                                return;
                             }
                             PacketType::FloodResponse(_) => {
                                 let p = self.forward_packet(packet);
@@ -142,7 +140,6 @@ impl RustaceansWitAttitudesDrone {
                                     Err(_p) => {self.send_shortcut_to_sc(_p.0)}
                                     _ => {}
                                 }
-                                return;
                             }
 
                             // Send Nack(ErrorInRouting) for other packet types
@@ -161,7 +158,6 @@ impl RustaceansWitAttitudesDrone {
                                     Ok(_p) => {self.send_sent_to_sc(_p)}
                                     Err(_p) => {self.send_shortcut_to_sc(_p.0)}
                                 }
-                                return;
                             }
                         }
                     }
