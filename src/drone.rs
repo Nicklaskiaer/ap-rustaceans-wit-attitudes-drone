@@ -73,6 +73,7 @@ impl RustaceansWitAttitudesDrone {
             DroneCommand::SetPacketDropRate(_pdr) =>{
                 debug!("Drone: {:?} received command SetPacketDropRate", self.id);
                 debug!("Drone: {:?} changed pdf from {:?} to {:?}", self.id, self.pdr, _pdr);
+                debug!("Drone: {:?} neighbours: {:?} ", self.id, self.packet_send.keys());
                 self.pdr = _pdr
             },
             DroneCommand::Crash => {
