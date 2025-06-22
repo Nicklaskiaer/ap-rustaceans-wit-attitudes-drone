@@ -287,9 +287,15 @@ impl RustaceansWitAttitudesDrone {
                 let mut rng = rand::thread_rng();
                 if rng.gen_range(0.0..=1.0) < self.pdr {
                     // forward Dropped
-                    packet.routing_header.reverse();
+                    let return_route = packet.routing_header
+                        .sub_route(0..=packet.routing_header.hop_index)
+                        .unwrap_or_else(|| {
+                            debug!("*surprised quack*, Drone: {:?} failed to get sub-route", self.id);
+                            panic!("Failed to get sub-route for NACK")
+                        });
+                    let reversed_route = return_route.get_reversed();
                     let new_packet = Packet::new_nack(
-                        packet.routing_header.clone(),
+                        reversed_route,
                         packet.session_id,
                         Nack{
                             fragment_index: packet.get_fragment_index(),
