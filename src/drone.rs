@@ -384,19 +384,17 @@ impl RustaceansWitAttitudesDrone {
         // send packet to neighbors (except for the previous drone)
         match packet.routing_header.previous_hop() {
             Some(prev) => {
-                for (node_id, _) in self.packet_send.clone() {
-                    if prev != node_id {
-                        // try to send packet
-                        match self.try_send_packet(p.clone(), node_id) {
-                            Ok(_) => {}
-                            Err(e) => {return Err(e)}
-                        }
+                for node_id in self.packet_send.keys().cloned() {
+                    if node_id != prev {
+                        let _ = self.try_send_packet(p.clone(), node_id);
                     }
                 }
             }
             None => {
-                debug!("*surprised quack*, Drone: {:?} panicked", self.id);
-                panic!("*surprised quack*")
+                // Caso iniziale del flooding: inoltra a tutti i vicini
+                for node_id in self.packet_send.keys().cloned() {
+                    let _ = self.try_send_packet(p.clone(), node_id);
+                }
             }
         }
         Ok(p)
